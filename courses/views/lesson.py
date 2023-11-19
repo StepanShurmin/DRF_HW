@@ -2,6 +2,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
 from courses.models import Lesson
+from courses.paginators import CoursesPaginator
 from users.permissions import IsOwner, IsModerator
 from courses.serializers.lesson import LessonSerializer
 
@@ -13,8 +14,9 @@ class LessonCreateAPIView(generics.CreateAPIView):
 
 class LessonListAPIView(generics.ListAPIView):
     serializer_class = LessonSerializer
-    queryset = Lesson.objects.all()
+    queryset = Lesson.objects.all().order_by('title')
     permission_classes = [IsAuthenticated, IsOwner | IsModerator]
+    pagination_class = CoursesPaginator
 
     def get_queryset(self):
         qst = super().get_queryset()
