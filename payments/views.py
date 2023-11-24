@@ -4,8 +4,7 @@ import stripe
 from django_filters.rest_framework import DjangoFilterBackend
 from dotenv import load_dotenv
 from rest_framework.filters import OrderingFilter
-from rest_framework import generics, status
-from rest_framework.generics import get_object_or_404
+from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -16,27 +15,27 @@ from payments.serializers import PaymentSerializer
 load_dotenv()
 
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+
+
 class PaymentCreateAPIView(generics.CreateAPIView):
     serializer_class = PaymentSerializer
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, *args, **kwargs):
-        payment_id = request.data.get("payment_id")
-        payment = get_object_or_404(Payment, id=payment_id)
+    def perform_create(self, serializer):
+        payment = serializer.save()
+        payment.user = self.request.user
+        payment.save()
+        return super().perform_create(serializer)
 
-        try:
-            stripe.Charge.create(
-                amount=int(Payment.price),
-                currency="usd",
-                source=request.data.get("stripeToken"),
-                description=f"Payment for {payment.user}"
-            )
-            return Response({"message": "Успешно"}, status=status.HTTP_201_CREATED)
-        except stripe.error.CardError as e:
-            return Response({"message": e.user_message}, status=status.HTTP_400_BAD_REQUEST)
-        except stripe.error.StripeError:
-            return Response({"message": "Что-то пошло не так. Пожалуйста, попробуйте еще раз позже."},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def payment_create(self):
+        pay = stripe.PaymentIntent.create(
+            amount=2000,
+            currency="usd",
+            automatic_payment_methods={"enabled": True},
+
+        )
+        pay.save()
+        return pay
 
 
 class PaymentListAPIView(generics.ListAPIView):
@@ -53,6 +52,11 @@ class PaymentRetrieveAPIView(generics.RetrieveAPIView):
     serializer_class = PaymentSerializer
     queryset = Payment.objects.all()
     permission_classes = [IsAuthenticated, IsOwner | IsModerator]
+
+    def get_payment(self, request):
+        pay_retrieve = stripe.PaymentIntent.retrieve(Payment.id_payment)
+        pay_retrieve.save()
+        return Response({'status': pay_retrieve.status})
 
 
 class PaymentUpdateAPIView(generics.UpdateAPIView):
