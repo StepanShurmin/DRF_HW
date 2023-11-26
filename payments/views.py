@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from rest_framework.filters import OrderingFilter
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 
 from users.permissions import IsOwner, IsModerator
 from payments.models import Payment
@@ -25,11 +24,14 @@ class PaymentCreateAPIView(generics.CreateAPIView):
         payment = serializer.save()
         payment.user = self.request.user
         payment.save()
+        payment_res = self.payment_create()
+        serializer.instance.id_payment = payment_res.id
+        serializer.instance.save()
         return super().perform_create(serializer)
 
     def payment_create(self):
         pay = stripe.PaymentIntent.create(
-            amount=2000,
+            amount=self.request.data['price'],
             currency="usd",
             automatic_payment_methods={"enabled": True},
 
@@ -54,9 +56,10 @@ class PaymentRetrieveAPIView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated, IsOwner | IsModerator]
 
     def get_payment(self, request):
-        pay_retrieve = stripe.PaymentIntent.retrieve(Payment.id_payment)
+        payment = self.get_object()
+        pay_retrieve = stripe.PaymentIntent.retrieve(payment.id_payment)
         pay_retrieve.save()
-        return Response({'status': pay_retrieve.status})
+        return pay_retrieve
 
 
 class PaymentUpdateAPIView(generics.UpdateAPIView):
