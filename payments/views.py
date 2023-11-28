@@ -55,12 +55,6 @@ class PaymentRetrieveAPIView(generics.RetrieveAPIView):
     queryset = Payment.objects.all()
     permission_classes = [IsAuthenticated, IsOwner | IsModerator]
 
-    def get_payment(self, request):
-        payment = self.get_object()
-        pay_retrieve = stripe.PaymentIntent.retrieve(payment.id_payment)
-        pay_retrieve.save()
-        return pay_retrieve
-
 
 class PaymentUpdateAPIView(generics.UpdateAPIView):
     serializer_class = PaymentSerializer

@@ -1,5 +1,3 @@
-import datetime
-
 import stripe
 from rest_framework import serializers
 
@@ -16,7 +14,5 @@ class PaymentSerializer(serializers.ModelSerializer):
     def get_pay_status(self, instance):
         payment_id = instance.id_payment
         pay_retrieve = stripe.PaymentIntent.retrieve(payment_id)
-        timestamp = pay_retrieve.created
-        created_datetime = datetime.datetime.fromtimestamp(timestamp)
-        formatted_time = created_datetime.strftime("%Y-%m-%d %H:%M:%S")
-        return f'создан {formatted_time}'
+
+        return pay_retrieve.status
