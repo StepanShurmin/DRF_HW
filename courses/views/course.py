@@ -1,11 +1,12 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from courses.models import Course
 from courses.paginators import CoursesPaginator
 from courses.serializers.course import CourseSerializer
 from users.permissions import IsOwner, IsModerator
-
+from courses.tasks import send_email_course_update
 
 class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
@@ -33,3 +34,10 @@ class CourseViewSet(viewsets.ModelViewSet):
             qst = qst.filter(user=self.request.user)
 
         return qst
+
+    def perform_update(self, serializer):
+        new_update = serializer.save()
+        if new_update:
+            send_email_course_update.delay(course_id=new_update.id)
+            new_update.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
